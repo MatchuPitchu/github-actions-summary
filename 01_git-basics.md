@@ -7,6 +7,10 @@
 
 ## Basics
 
+- set default editor & global config: `git config --global core.editor "code --wait"`
+- set to open config in default editor: `git config --global -e`
+- set global config `End of Line` (EoL): `git config --global core.autocrlf true`
+
 - `git init`: create repository in a folder
 - `git add [<file(s)> | -A]`: stage changes in certain files/folders or all changes in repository for next commit
 - `git commit -m "your message"`: create a commit that includes all staged changes
@@ -25,9 +29,9 @@
 - `git push --set-upstream origin <branch name>`: set a connection between remote repo and a branch
 - `git push`: send local commits to `origin` (-> remote repo)
 
-- set default editor & global config: `git config --global core.editor "code --wait"`
-- set to open config in default editor: `git config --global -e`
-- set global config `End of Line` (EoL): `git config --global core.autocrlf true`
+- `git pull`: downloads (-> `fetches`) latest snapshot of the remote repository and integrates it into the current branch
+
+- `git clone <GitHub-URL>`: clone a remote repository on your local machine
 
 - `git stash`: Änderungen in Arbeitskopie werden zwischengespeichert
   - `git stash -m "YOUR_TEXT"`: alle Änderungen zwischenspeichern unter bestimmtem Namen
@@ -49,3 +53,13 @@
 - `git switch <name> (-)`: switch to another branch OR to last branch with `-`
   - older way: `git checkout <name>`
 - `git merge <name branch x>`: merge commits of `branch x` into current branch and append these new commits to commits in your current branch
+
+## Collaboration
+
+- if you have a public repo on `GitHub`, you can invite other people to collaborate (-> `Settings` -> `Collaborators`)
+- important: protect branch(es) like `main` branch (-> `Settings` -> `Branches`) to avoid editing or deleting
+
+- `Pull Request`: ask pull request to be allowed to merge your branch into another remote branch on `GitHub` or `GitLab`
+
+- `Fork`: is a copy of a repository; allows you to freely experiment with changes without affetcting the original project
+  - if you add new commits to your `fork`, you can then do a `Pull Request` in original repo on `GitHub` and chose option `compare across forks`, i.e. set your fork repo branch as origin for a comparison of the `Pull Request`
