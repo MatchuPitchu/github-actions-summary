@@ -34,17 +34,72 @@
 
 ![](/01_slides/01_workflows-jobs-steps.png)
 
-## Practice Basic Workflow
+## Events (Workflow Triggers)
 
-- `GitHub` -> `Actions`
-- workflow configuration should be stored in `<repo-name>/.github/workflows/<config-file.yml>`
-- after defining `yml` config file, go to `Actions` where workflows are listed
-  - there you can start and evaluate result of workflow
+> List of Events: <https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows>
+
+- `repository-related`
+
+  - `push`: pushing a commit
+  - `pull_request`: pull request action (opened, closed, ...)
+  - `create`: a branch or tag was created
+  - `fork`: repository was forked
+  - `issues`: an issue was opened, deleted, ...
+  - `issue_comment`: issue or pull request comment action
+  - `watch`: repository was starred
+  - `discussion`: discussion action (created, deleted, ...)
+  - ... and more
+
+- `other events`
+  - `workflow_dispatch`: manually trigger workflow
+  - `respository_dispatch`: REST API request triggers workflow
+  - `schedule`: workflow is scheduled
+  - `workflow_call`: can be called by other workflows
+
+## Runners
+
+> Docu runner environments: <https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners#supported-runners-and-hardware-resources>
+
+> List of preinstalled software of specific runner: <https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners#preinstalled-software>
+
+- servers (machines) that execute the jobs
+- pre-defined `runners`(with different operating systems) exist
+- you can also create custom `runners`
+
+## Actions
+
+- `command` (-> `run`) is a (typically simple) shell command that's defined by you
+
+- `action`
+  - is a (custom) application that performs a (typically complex) frequently repeated task
+  - you can build you own `Actions` but you can also use official or community `Actions`
+  - `GitHub marketplace` to find `Actions`: <https://github.com/marketplace>
+
+## Jobs in Parallel vs Sequential
+
+- `jobs` run in parallel by default, add `needs` keywords to make this job sequential (-> depending on another)
+
+```yml
+# ...
+jobs:
+  deploy:
+    # this job waits until 'test' job is successfully finished
+    needs: test # multiple jobs: [test, job2]
+```
+
+## Examples of Workflows
+
+- `GitHub` -> `Actions` -> there you find all workflows listed
+- workflow configuration should be stored in `<repo-name>/.github/workflows/<config-file>.yml`
+- workflos are executed when their events are triggered
+- `GitHub` provides detailed insights into job execution and logs
+
+### Basic Workflow
 
 ```yml
 # name of workflow
 name: First Workflow
-# event(s) that triggers workflow
+# event(s) that triggers workflow (event = workflow trigger)
 # "workflow_dispatch" means that workflow is started manually
 on: workflow_dispatch
 # define jobs
@@ -62,4 +117,93 @@ jobs:
         run: |
           echo "Done"
           echo "Bye"
+```
+
+### Workflow to Run Tests of React App
+
+```yml
+name: Test Project
+on: push
+jobs:
+  test:
+    # list of preinstalled software of specific runner: https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners#preinstalled-software
+    # Node is already installed
+    runs-on: ubuntu-latest
+    steps:
+      # steps run on machines/servers in a specific environment, NOT inside the repo
+      # so you need to make code available for server
+      - name: Get code
+        # Action to checkout the repo: https://github.com/actions/checkout
+        # use 'uses' keyword for an action, 'run' for a command
+        uses: actions/checkout@v3
+        # configure action with 'with' keyword
+        # with: -> here not needed since default config is fine
+      # install Node NOT needed here, but to show like it would be installed on server
+      - name: Install NodeJS
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Install dependencies
+        # 'npm ci' install all dependencies locked into package-lock.json
+        # 'npm i' install all dependencies in package.json
+        run: npm ci
+      - name: Run tests
+        run: npm test
+```
+
+### Workflow to Run Tests and Deploy React App
+
+```yml
+name: Deploy Project
+on: [push, workflow_dispatch] # add multiple events that trigger workflow
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get code
+        uses: actions/checkout@v3
+      - name: Install NodeJS
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+  deploy:
+    # this job waits until 'test' job is successfully finished
+    needs: test # multiple jobs: [test, job2]
+    # every job gets its own runner - its own virtual machine that's totally isolated from other machines and jobs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get code
+        uses: actions/checkout@v3
+      - name: Install NodeJS
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Install dependencies
+        run: npm ci
+      - name: Build project
+        run: npm run build
+      - name: Dploy
+        # normally you need to deploy on real hosting server
+        run: echo "Deploying ..."
+```
+
+### Workflow with basic Expression and Context Integration
+
+- Docu of available contexts (e.g. `github`): <https://docs.github.com/en/actions/learn-github-actions/contexts>
+- Docu of available expressions (e.g. `${{ toJSON(github) }}`): <https://docs.github.com/en/actions/learn-github-actions/expressions>
+
+```yml
+name: Output information
+on: workflow_dispatch
+jobs:
+  info:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Output GitHub context
+        # output inserted values of a context: here github key (-> stands for the context object)
+        run: echo "${{ toJSON(github) }}" # outputs github context
 ```

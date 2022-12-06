@@ -21,6 +21,7 @@
   - `git checkout <commitId>`: temporarily move to another commit
   - `git checkout <branch name>`: return to latest snapshot of a branch
 - `git revert <commitId>`: undoes changes of a commit by creating a new commit
+  - is a forward-moving undo operation; instead of deleting or orphaning commits in the commit history, a `revert` will create a new commit that inverses the changes specified; `revert` is a safer alternative to `git reset` in regards to losing work
 - `git reset --hard <commitId>`: undoes changes by deleting all(!) commits since `<commitId>` and deletes whole history after `<commitId>`
 
 - `.gitignore`: file containing files and folders that should not be included in the git repository
