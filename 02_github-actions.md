@@ -148,6 +148,66 @@ jobs:
     needs: test # multiple jobs: [test, job2]
 ```
 
+## Jobs Artifacts & Outputs
+
+- `Job Artifacts`: are output asset(s) (i.e. files, folders) of a job (e.g. App binary, website files, log files etc.)
+  - download artifacts and use them manually (via `GitHub UI` or `REST API`)
+  - download artifacts and use them in other `jobs` (via `Action`)
+- `Job Outputs`: simple values
+  - is typically used for re-using a value in different jobs
+  - example: name of a file generated in a previous build step
+
+```yml
+name: Deploy example
+on:
+  push:
+    branches:
+      - main
+jobs:
+  # test:
+  # ... not included here
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get code
+        uses: actions/checkout@v3
+      - name: Install dependencies
+        run: npm ci
+      - name: Build website
+        run: npm run build
+      # Store output (-> job artifact) using available upload-artifact action
+      # https://github.com/actions/upload-artifact
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          # give artifact a name -> can be downloaded manually in GitHub -> Actions ...
+          name: dist-files
+          # define path of your repo to be stored
+          path: dist
+          # define multiple path (-> use | for multiline instructions) to be stored
+          # path: |
+          #   dist
+          #   package.json
+  deploy:
+    # need to run after build step that artifact is ready to use
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      # take artifacts of previous job
+      # actions/download-artifact
+      - name: Get build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          # identifier for which artifact to download, unzip and directly navigate into this folder
+          name: dist-files
+      - name: Output contents
+        # only to show that you are directly navigated into dist folder of artifact
+        run: ls
+      - name: Deploy
+        run: echo "Deploying..."
+```
+
 ## Examples of Workflows
 
 - `GitHub` -> `Actions` -> there you find all workflows listed
