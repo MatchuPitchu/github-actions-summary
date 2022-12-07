@@ -21,11 +21,16 @@
   - are attached to GitHub repositories
   - contain one or more `jobs`
   - are triggered when certain `events` are fired
+  - by default, `workflows` get cancelled if `jobs` fail -> but you can cancel also manually directly in GitHub
+  - by default, all matching `events` start a `workflow` -> exceptions for `push` and `pull_request`
+    - there you can skip with proper commit message: `git commit -m "message [skip ci]"`
+    - all skip keywords: <https://docs.github.com/en/actions/managing-workflow-runs/skipping-workflow-runs>
 - `Jobs`
   - define a `runner` (i.e. execution environment)
   - contain one or more `steps`
   - if you have multiple `jobs`, they can run in parallel (default) or sequential
   - can run for certain conditions
+  - by default, `jobs` fail if at least one `step` fails
 - `Steps`
   - execute a `shell script` or an `action`
   - can use custom or third-party actions
@@ -42,6 +47,7 @@
 
   - `push`: pushing a commit
   - `pull_request`: pull request action (opened, closed, ...)
+    - by default, `pull requests` based on forks do NOT trigger a workflow -> to avoid malicious workflow runs & high costs for all these runs
   - `create`: a branch or tag was created
   - `fork`: repository was forked
   - `issues`: an issue was opened, deleted, ...
@@ -55,6 +61,61 @@
   - `respository_dispatch`: REST API request triggers workflow
   - `schedule`: workflow is scheduled
   - `workflow_call`: can be called by other workflows
+
+### Event Activity Types & Filters
+
+> List of Events with their available `activity types` and `filters`: <https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows>
+
+> Filter Patterns Cheat Sheet: <https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#patterns-to-match-branches-and-tags>
+
+- some events habe `activity types`: allows more control over when a workflow will be triggered
+  - e.g. `pull_request` event: `opened`, `closed`, `edited` ...
+- some events have `filters`: allows more control over when a workflow will be triggered
+  - e.g. `push` event: filter based on target branch
+
+```yml
+name: Events Demo 1
+on:
+  # Events with more control about when they are triggered
+  pull_request:
+    # activity types
+    # - opened -> this notation also works
+    types: [opened, synchronize, edited]
+    # target branches of a pull request
+    branches:
+      - main
+      - 'dev-*' # all branches starting with 'dev-' and characters behind (except slashes)
+      - 'feature/**' # all branches starting with 'feature/' and any combination of characters and slashes after
+  # notice: colon is mandatory, even if no more details defined below
+  workflow_dispatch:
+  push:
+    # filters
+    branches:
+      - main
+      - 'dev-*'
+      - 'feature/**'
+    branches-ignore:
+      - 'foo/**'
+    # filters based on file paths: runs workflow if commit changes file(s) in specific path(s) or except specific path(s)
+    paths-ignore:
+      - '.github/workflows/*' # triggers only if NO file changed in this path
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Output event data
+        run: echo "${{ toJSON(github.event) }}"
+      - name: Get code
+        uses: actions/checkout@v3
+      - name: Install dependencies
+        run: npm ci
+      - name: Test code
+        run: npm run test
+      - name: Build code
+        run: npm run build
+      - name: Deploy project
+        run: echo "Deploying ..."
+```
 
 ## Runners
 
@@ -191,7 +252,7 @@ jobs:
         run: echo "Deploying ..."
 ```
 
-### Workflow with basic Expression and Context Integration
+### Workflow with Basic Expression and Context Integration
 
 - Docu of available contexts (e.g. `github`): <https://docs.github.com/en/actions/learn-github-actions/contexts>
 - Docu of available expressions (e.g. `${{ toJSON(github) }}`): <https://docs.github.com/en/actions/learn-github-actions/expressions>
@@ -206,4 +267,20 @@ jobs:
       - name: Output GitHub context
         # output inserted values of a context: here github key (-> stands for the context object)
         run: echo "${{ toJSON(github) }}" # outputs github context
+```
+
+### Workflow triggered by something Issue-related in Repository
+
+```yml
+name: Handle issues
+# workflow is triggered when something issue-related happens in repo
+on: issues
+jobs:
+  output-info:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Output event details
+        # access event property of github context object
+        # in real case: you could use event data to do something with it
+        run: echo "${{ toJSON(github.event) }}"
 ```
