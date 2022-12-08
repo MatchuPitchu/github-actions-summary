@@ -516,3 +516,70 @@ jobs:
         run: |
           echo "MONGODB_DB_NAME: ${{ env.MONGODB_DB_NAME }}"
 ```
+
+## Controlling Execution Flow
+
+- default behavior: workflow fails if one step failed
+- you can add `conditions` to `jobs` and `steps` via `if` field
+- `steps` does have a `continue-on-error` field to ignore errors
+- evaluate `conditions` via `expressions`
+
+- `special condition functions`:
+  - `failure()`: returns `true` when any prev `step` or `job` failed
+  - `success()`: returns `true` when none of prev `steps` failed
+  - `always()`: causes the `step` to always execute, even when cancelled
+  - `cancelled()`: returns `true` if `workflow` has been cancelled
+
+```yml
+name: Website Deployment
+on:
+  push:
+    branches:
+      - main
+jobs:
+  # ...
+  # ...
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get code
+        uses: actions/checkout@v3
+      - name: Cache dependencies
+        id: cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: deps-node-modules-${{ hashFiles('**/package-lock.json') }}
+      - name: Install dependencies
+        run: npm ci
+      - name: Test code
+        # id can be added to every step to identify it
+        id: run-tests
+        run: npm run test
+      # upload should be executed if test fails, but by default
+      # all following steps AND all jobs based on this job are stopped
+      - name: Upload test report
+        # add condition with a dynamically evaluated expression with steps object context
+        # here: you can also omit surrounding ${{ }}
+        # conditional functions: failure() needed to change default behavior of stopping execution if step fails
+        # operators: https://docs.github.com/en/actions/learn-github-actions/expressions#operators
+        if: ${{ failure() && steps.run-tests.outcome == 'failure'}}
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-report
+          # test.json summary is produced by script (-> package.json)
+          path: test.json
+  # ...
+  # ...
+  report:
+    # only starts after 'lint' and 'deploy' (which depends on 'build' and 'test') finished
+    needs: [lint, deploy]
+    # only executed if any other job or step failed
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Output information
+        run: |
+          echo "Something went wrong"
+          echo "${{ toJSON(github) }}"
+```
