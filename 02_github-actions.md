@@ -450,7 +450,7 @@ jobs:
 const dbPassword = process.env.DB_PASSWORD;
 ```
 
-- use `secrets` to avoid that some env variable values are exposed (e.g. database password)
+- use `secrets` to avoid that some env variable values are exposed (e.g. database password, API keys)
 
   - go to `GitHub` repo -> `Settings` -> `Secrets` -> `Actions`
   - there you can set env variables that will be available in all workflows
@@ -480,7 +480,7 @@ jobs:
     # set an environment configured in GitHub Repo -> Settings -> Environments
     # env variables are pulled from this environment
     environment: testing
-    # set env variable on job level
+    # set env variable on job level (-> also possible on step level)
     env:
       MONGODB_CLUSTER_ADDRESS: dummy_cluster_address
       # reference to secrets stored in GitHub repo with secret object context
