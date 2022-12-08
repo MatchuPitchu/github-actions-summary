@@ -208,6 +208,7 @@ jobs:
 - `Job Outputs`: simple values
   - is typically used for re-using a value in different jobs
   - example: name of a file generated in a previous build step
+  - to use in command: `echo '{output-name}={output-value}' >> $GITHUB_OUTPUT`
 
 ```yml
 name: Deploy example
@@ -246,13 +247,15 @@ jobs:
         run: echo "${{ needs.build.outputs.script-file }}"
 ```
 
-## Caching Dependencies
+## Caching
 
 > GitHub Action for Caching with Examples: <https://github.com/actions/cache>
 
-- when you have separate `jobs` that all need to install the same dependencies
-- solution:
-  - install dependencies once and cache them for other `jobs` or across `workflow` executions
+- helps speed up repeated, slow `steps`
+- typical use-case is caching dependencies, but any files and folders can be cached
+- data is cached once and is available for other `jobs` or across `workflow` executions
+  - cache `action` automatically stores and updates cache values (based on the `cache key`)
+- do NOT use caching for `artifacts`
 
 ```yml
 name: Deploy example
