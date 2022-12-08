@@ -153,9 +153,6 @@ jobs:
 - `Job Artifacts`: are output asset(s) (i.e. files, folders) of a job (e.g. App binary, website files, log files etc.)
   - download artifacts and use them manually (via `GitHub UI` or `REST API`)
   - download artifacts and use them in other `jobs` (via `Action`)
-- `Job Outputs`: simple values
-  - is typically used for re-using a value in different jobs
-  - example: name of a file generated in a previous build step
 
 ```yml
 name: Deploy example
@@ -206,6 +203,50 @@ jobs:
         run: ls
       - name: Deploy
         run: echo "Deploying..."
+```
+
+- `Job Outputs`: simple values
+  - is typically used for re-using a value in different jobs
+  - example: name of a file generated in a previous build step
+
+```yml
+name: Deploy example
+on:
+  push:
+    branches:
+      - main
+jobs:
+  # test:
+  # ... not included here
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    # define that this job will have an output (i.e. value(s))
+    outputs:
+      # custom identifier key, using special 'steps' context object, use your defined id (look below)
+      # to access your value
+      script-file: ${{ steps.publish.outputs.foo }}
+    steps:
+      - name: Get code
+        uses: actions/checkout@v3
+      - name: Install dependencies
+        run: npm ci
+      - name: Build website
+        run: npm run build
+      - name: Publish JS filename
+        id: publish
+        # Linux Command to find name of JS file in assets folder and print it
+        # to store this file name, add "foo=" before output value (here "{}")
+        # and add >> $GITHUB_OUTPUT after value (targets special file that GitHub creats in your environment
+        # where output key value pair is written to)
+        run: find dist/assets/*.js -type f -execdir echo 'foo={}' >> $GITHUB_OUTPUT ';'
+  output:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Output filename
+        # output stored js filename of build job; needs obj contains all outputs of current jobs
+        run: echo "${{ needs.build.outputs.script-file }}"
 ```
 
 ## Examples of Workflows
@@ -314,7 +355,7 @@ jobs:
 
 ### Workflow with Basic Expression and Context Integration
 
-- Docu of available contexts (e.g. `github`): <https://docs.github.com/en/actions/learn-github-actions/contexts>
+- Docu of available contexts (`github`, `steps`, `needs` etc.): <https://docs.github.com/en/actions/learn-github-actions/contexts>
 - Docu of available expressions (e.g. `${{ toJSON(github) }}`): <https://docs.github.com/en/actions/learn-github-actions/expressions>
 
 ```yml
