@@ -216,10 +216,7 @@ on:
     branches:
       - main
 jobs:
-  # test:
-  # ... not included here
   build:
-    needs: test
     runs-on: ubuntu-latest
     # define that this job will have an output (i.e. value(s))
     outputs:
@@ -247,6 +244,57 @@ jobs:
       - name: Output filename
         # output stored js filename of build job; needs obj contains all outputs of current jobs
         run: echo "${{ needs.build.outputs.script-file }}"
+```
+
+## Caching Dependencies
+
+> GitHub Action for Caching with Examples: <https://github.com/actions/cache>
+
+- when you have separate `jobs` that all need to install the same dependencies
+- solution:
+  - install dependencies once and cache them for other `jobs` or across `workflow` executions
+
+```yml
+name: Deploy example
+on:
+  push:
+    branches:
+      - main
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get code
+        uses: actions/checkout@v3
+      # Cache dependencies: needs action before dependencies installation
+      # AND inserted in every job that needs the same centrally cached data
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          # define path(s) that includes folder(s) that should be stored in some place
+          # in GitHub cloud across different jobs
+          path: ~/.npm
+          # define key to re-use cached data OR to discard data
+          # hashFiles() creates unique hash value based on a file path passed as argument
+          # idea: whenever package-lock.json was updated, new hash would be different and key would become invalid
+          key: deps-node-modules-${{ hashFiles('**/package-lock.json')}}
+      - name: Install dependencies
+        run: npm ci
+      # ...
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get code
+        uses: actions/checkout@v3
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: deps-node-modules-${{ hashFiles('**/package-lock.json')}}
+      - name: Install dependencies
+        run: npm ci
+      # ...
 ```
 
 ## Examples of Workflows
