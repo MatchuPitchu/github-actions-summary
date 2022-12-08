@@ -2,6 +2,8 @@
 
 > Cours Repository: <https://github.com/academind/github-actions-course-resources>
 
+> Plugin GitHub Actions for VSCode: <https://marketplace.visualstudio.com/items?itemName=cschleiden.vscode-github-actions>
+
 - `GitHub Actions` is a workflow automation service: automate all kinds of repository-related processes & actions
 - `Code Deployment`: automate code testing, building & deployment
   - `Continuous Integration` (CI): code changes are automatically built, tested & merged with existing code
@@ -242,7 +244,7 @@ jobs:
 
 ### Workflow 4: with basic expression and context integration
 
-- Docu of available contexts (`github`, `steps`, `needs` etc.): <https://docs.github.com/en/actions/learn-github-actions/contexts>
+- Docu of available contexts (`github`, `steps`, `needs`, `secrets`, `env` etc.): <https://docs.github.com/en/actions/learn-github-actions/contexts>
 - Docu of available expressions (e.g. `${{ toJSON(github) }}`): <https://docs.github.com/en/actions/learn-github-actions/expressions>
 
 ```yml
@@ -435,4 +437,82 @@ jobs:
       - name: Install dependencies
         run: npm ci
       # ...
+```
+
+## Environment Variables & Secrets
+
+> Docu of GitHub Actions: <https://docs.github.com/en/actions/learn-github-actions/environment-variables>
+
+> Default environment variables that GitHub sets automatically and that are available to every `step` in a `workflow`: <https://docs.github.com/en/actions/learn-github-actions/environment-variables#default-environment-variables>
+
+```javascript
+// credential variables can differ depending on the current environment (e.g. testing and production)
+const dbPassword = process.env.DB_PASSWORD;
+```
+
+- use `secrets` to avoid that some env variable values are exposed (e.g. database password)
+
+  - go to `GitHub` repo -> `Settings` -> `Secrets` -> `Actions`
+  - there you can set env variables that will be available in all workflows
+  - these variables can NOT be viewed again by a person having access to your repo
+
+- GitHub `Environments`: e.g. set a `testing`, `staging`, or `production` environment for a specific repo
+  - go to `GitHub` repo -> `Settings` -> `Environments` (available in public or private paid repositories)
+  - `workflow jobs` can target `Environments` with key `environment`: so you can provide
+    - different configurations like `different secrets` for different environments (e.g. different database passwords, different database addresses)
+    - special `protection rules`:
+      - only specified reviewer(s) should approve workflow runs
+      - only events related to certain branches can use an environment (e.g. only pushes from `main` branch can trigger this environment)
+
+```yml
+name: Deployment
+on:
+  push:
+    branches:
+      - main
+      - dev
+# defining env variable on workflow level -> they will be available in all jobs
+env:
+  # use your defined variable name of process.env.NAME as key and set the value
+  MONGODB_DB_NAME: dummy-name
+jobs:
+  test:
+    # set an environment configured in GitHub Repo -> Settings -> Environments
+    # env variables are pulled from this environment
+    environment: testing
+    # set env variable on job level
+    env:
+      MONGODB_CLUSTER_ADDRESS: dummy_cluster_address
+      # reference to secrets stored in GitHub repo with secret object context
+      MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME}}
+      MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD}}
+      PORT: 3000
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Code
+        uses: actions/checkout@v3
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: npm-deps-${{ hashFiles('**/package-lock.json') }}
+      - name: Install dependencies
+        run: npm ci
+      - name: Run server
+        # a) inject env variable into command (-> format for Linux Bash Shell used on ubuntu runner: $NAME)
+        # you could also change the default shell to Windows Powershell etc.: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsshell
+        run: npm start & npx wait-on http://127.0.0.1:$env:PORT
+      - name: Output information
+        # b) output env variable with GitHub env object context
+        # 'env.MONGODB_USERNAME' is automatically hidden by GitHub because it's set as a secret
+        run: |
+          echo "MONGODB_USERNAME: ${{ env.MONGODB_DB_NAME }}"
+          echo "MONGODB_USERNAME: ${{ env.MONGODB_USERNAME }}"
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Output information
+        run: |
+          echo "MONGODB_DB_NAME: ${{ env.MONGODB_DB_NAME }}"
 ```
