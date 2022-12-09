@@ -551,6 +551,10 @@ jobs:
           path: ~/.npm
           key: deps-node-modules-${{ hashFiles('**/package-lock.json') }}
       - name: Install dependencies
+        # check if dependencies installation is needed, otherwise skip 'npm ci'
+        # check if cached dependencies matches the needed deependencies
+        # use "id: cache" vie steps object context to access output ('true'/'false') of actions/cache@v3
+        if: ${{ steps.cache.outputs.cache-hit != 'true'}}
         run: npm ci
       - name: Test code
         # id can be added to every step to identify it
