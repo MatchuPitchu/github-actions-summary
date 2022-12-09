@@ -520,8 +520,12 @@ jobs:
 ## Controlling Execution Flow
 
 - default behavior: workflow fails if one step failed
-- you can add `conditions` to `jobs` and `steps` via `if` field
-- `steps` does have a `continue-on-error` field to ignore errors
+- `if`: you can add `conditions` to `jobs` and `steps` via `if` field
+  - job continues if condition in steps is fullfilled, but failed step is also treated as failed and so following workflow is by default stopped
+- `continue-on-error`: `steps` does have a `continue-on-error` field to ignore errors
+  - job should continue execution even if step fails
+  - treats `step` as succeeded despite it is technically failing
+  - Documentation for `steps context object`: <https://docs.github.com/en/actions/learn-github-actions/contexts#steps-context>
 - evaluate `conditions` via `expressions`
 
 - `special condition functions`:
@@ -531,6 +535,7 @@ jobs:
   - `cancelled()`: returns `true` if `workflow` has been cancelled
 
 ```yml
+# Example with if condition and special condition functions
 name: Website Deployment
 on:
   push:
@@ -586,4 +591,42 @@ jobs:
         run: |
           echo "Something went wrong"
           echo "${{ toJSON(github) }}"
+```
+
+```yml
+# Example with continue-on-error
+name: Continue Website Deployment
+on:
+  push:
+    branches:
+      - main
+jobs:
+  # ...
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get code
+        uses: actions/checkout@v3
+      - name: Cache dependencies
+        id: cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: deps-node-modules-${{ hashFiles('**/package-lock.json') }}
+      - name: Install dependencies
+        if: ${{ steps.cache.outputs.cache-hit != 'true'}}
+        run: npm ci
+      - name: Test code
+        # job should continue execution even if step fails
+        # treats step as succeeded despite it is technically failing
+        # Docu for steps object context: https://docs.github.com/en/actions/learn-github-actions/contexts#steps-context
+        continue-on-error: true
+        id: run-tests
+        run: npm run test
+      - name: Upload test report
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-report
+          path: test.json
+  # ...
 ```
