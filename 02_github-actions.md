@@ -630,3 +630,151 @@ jobs:
           path: test.json
   # ...
 ```
+
+## Matrix Workflow
+
+- with a `matrix` you can run the same job for different configurations (e.g. `runners`, `node versions`)
+
+```yml
+name: Matrix Demo
+on: push
+jobs:
+  build:
+    continue-on-error: true
+    strategy:
+      matrix:
+        node-version: [14, 16]
+        operating-system: [ubuntu-latest, windows-latest]
+        # include specific standalone combination as job environment
+        include:
+          - node-version: 18
+            operating-system: ubuntu-latest
+            # ... you can also add more keys that are NOT defined for matrix above
+        # exclude specific standalone combination
+        exclude:
+          - node-version: 14
+            operating-system: windows-latest
+    # use matric context object to access defined matrix values
+    # job will then run multiple times in parallel: once per matrix value
+    # AND for ALL matrix value combinations, if you have multiple
+    runs-on: ${{ matrix.operating-system }}
+    steps:
+      - name: Get Code
+        uses: actions/checkout@v3
+      - name: Install NodeJS
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Install Dependencies
+        run: npm ci
+      - name: Build project
+        run: npm run build
+```
+
+## Reusable Workflows
+
+- re-use `workflow A` inside `workflow B`
+- use `workflow_call` event
+- work with `inputs`, `outputs` and `secrets` as required
+
+```yml
+# 09_reusable-workflow.yml
+name: Reusable Deploy
+# make workflow callable for other workflows
+on:
+  workflow_call:
+    # add inputs this workflow needs to execute somewhere else
+    inputs:
+      artifact-name:
+        description: The name of the deployable artifact files
+        # if required to succeed workflow
+        required: false
+        # if 'required: false' -> you can set default value for 'artifact-name' key
+        default: dist
+        type: string # or number, boolean
+      # ... other keys as you like and need
+    # set outputs of this workflow
+    outputs:
+      result:
+        description: The result olf the deployment operation
+        # use jobs context object
+        value: ${{ jobs.deploy.outputs.outcome }}
+
+    # add secrets this workflow needs to execute
+    # secrets:
+    #   some-secret:
+    #     required: false
+jobs:
+  deploy:
+    # define outputs of this job
+    outputs:
+      outcome: ${{ steps.set-result.outputs.step-result }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get code
+        uses: actions/download-artifact@v3
+        with:
+          # use inputs context object
+          name: ${{ inputs.artifact-name }}
+      - name: List files
+        run: ls
+      - name: Output information
+        run: echo "Deploying and uploading ..."
+      - name: Set result output
+        id: set-result
+        run: echo "step-result=success" >> $GITHUB_OUTPUT
+```
+
+```yml
+# 10_use-reusable-workflow.yml
+name: Using Reusable Workflow
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get code
+        uses: actions/checkout@v3
+      - name: Cache dependencies
+        id: cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: dependencies-node-modules-${{ hashFiles('**/package-lock.json') }}
+      - name: Install dependencies
+        run: npm ci
+      - name: List the state of node modules
+        if: ${{ steps.cache.outputs.cache-hit != 'true'}}
+        run: npm list
+      - name: Build website
+        id: build-website
+        run: npm run build
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: dist-files
+          path: dist
+  deploy:
+    needs: build
+    # to re-use workflow, point to path of re-usable workflow
+    # here: relative path inside current repo
+    # also possible: absolute path to another rep
+    uses: ./.github/workflows/09_reusable-workflow.yml
+    with:
+      # provide needed input values to execute re-usable workflow
+      artifact-name: dist-files
+    # pass a secret to workflow
+    # secrets:
+    #   some-secret: ${{ secrets.some-secret }}
+  print-deploy-result:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print deploy output
+        # needs context object gives access to job you are depending on
+        # properties 'outputs.results' -> look at reusable-workflow.yml
+        run: echo "${{ needs.deploy.outputs.result }}"
+```
