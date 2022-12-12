@@ -794,8 +794,15 @@ jobs:
   - full control over environment and installed software
 - `Runner`:
   - choose frome list of pre-defined environments (incl. installed software)
+- using Service Containers (`Services`)
+  - example: run tests
+  - problem: tests should not manipulate the production database
+  - solution: use a testing database
+    - `service container` hosts a testing database
+    - runs inside a container (hosted by the `Runner`)
+    - job `steps` can communicate with service containers (and the services exposed by them)
 
-### Docker Container Example in Workflow
+### Docker Container Example with Service Container in Workflow
 
 ```yml
 name: Deployment (Container)
@@ -875,12 +882,3 @@ jobs:
           echo "MONGODB_USERNAME: $MONGODB_USERNAME"
           echo "${{ env.PORT }}"
 ```
-
-### Using Service Containers (Services)
-
-- example: run tests
-- problem: tests should not manipulate the production database
-- solution: use a testing database
-  - `service container` hosts a testing database
-  - runs inside a container (hosted by the `Runner`)
-  - job `steps` can communicate with service containers (and the services exposed by them)
