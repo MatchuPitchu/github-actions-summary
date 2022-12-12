@@ -834,9 +834,13 @@ jobs:
       # MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
 
       # V2: with services testing database
+      # protocol adjustement as written in image docu
       MONGODB_CONNECTION_PROTOCOL: mongodb
-      # use services label below to establish a network connection (only works, if job runs in a container)
-      MONGODB_CLUSTER_ADDRESS: mongodb # protocol adjustement as written in image docu
+      # a) if job runs in a container: use services label below to establish a network connection
+      MONGODB_CLUSTER_ADDRESS: mongodb
+      # b) if job runs without a container: use localhost IP address
+      # MONGODB_CLUSTER_ADDRESS: 127.0.0.1:27017
+
       # you have to use dummy credentials (look below)
       MONGODB_USERNAME: root
       MONGODB_PASSWORD: example
@@ -847,9 +851,15 @@ jobs:
       mongodb:
         # a service always runs into an image (here: 'mongo' image of docker hub)
         image: mongo
+
+        # if V2 b) job runs without a container: open port of localhost IP address
+        # ports:
+        #   # internal port 27017 should be forwarded to port on Runner machine
+        #   - 27017:27017
         # insert needed credentials for mongo db
         # notice: this database is only running as long as the workflow is running
         # so it can NOT be used by anybody else and exposing dummy credentials is possible
+
         env:
           MONGO_INITDB_ROOT_USERNAME: root
           MONGO_INITDB_ROOT_PASSWORD: example
