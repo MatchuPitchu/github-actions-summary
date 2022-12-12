@@ -778,3 +778,109 @@ jobs:
         # properties 'outputs.results' -> look at reusable-workflow.yml
         run: echo "${{ needs.deploy.outputs.result }}"
 ```
+
+## Jobs & Docker Containers
+
+- `docker container`:
+  - packages that contain `code` and its `execution environment`
+  - you build `images` based on a `Dockerfile` definition
+- with `GitHub Actions` you can run your workflows
+  - just on the `Runner` machine (e.g. `ubuntu-latest`)
+  - or in a `container`
+    - then a containerized job is hosted by the `Runner` and the `Steps` execute inside the container
+    - you can also create `Services`: Utility containers used by your `Steps` (e.g. testing database)
+- `container`:
+  - reproducible and isolated execution environment and results
+  - full control over environment and installed software
+- `Runner`:
+  - choose frome list of pre-defined environments (incl. installed software)
+
+### Docker Container Example in Workflow
+
+```yml
+name: Deployment (Container)
+on:
+  push:
+    branches:
+      - main
+      - dev
+env:
+  CACHE_KEY: node-deps
+  MONGODB_DB_NAME: gha-demo
+jobs:
+  test:
+    environment: testing
+    # Runner machine will now only host container below
+    runs-on: ubuntu-latest
+    container:
+      # use your own docker container
+      # OR available images on docker hub: https://hub.docker.com/search?q=&type=image
+      image: node:16
+      # you can add env variables that are needed by image (e.g. look at image docu)
+      # env:
+    env:
+      # V1: without services testing database
+      # Data does NOT work - only dummy data, workflow fails
+      # MONGODB_CONNECTION_PROTOCOL: mongodb+srv
+      # MONGODB_CLUSTER_ADDRESS: cluster0.15pwqcc.mongodb.net
+      # MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
+      # MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
+
+      # V2: with services testing database
+      MONGODB_CONNECTION_PROTOCOL: mongodb
+      # use services label below to establish a network connection (only works, if job runs in a container)
+      MONGODB_CLUSTER_ADDRESS: mongodb # protocol adjustement as written in image docu
+      # you have to use dummy credentials (look below)
+      MONGODB_USERNAME: root
+      MONGODB_PASSWORD: example
+      PORT: 8080
+    # add a container service (e.g. to host a testing database) in a job
+    services:
+      # custom identifier
+      mongodb:
+        # a service always runs into an image (here: 'mongo' image of docker hub)
+        image: mongo
+        # insert needed credentials for mongo db
+        # notice: this database is only running as long as the workflow is running
+        # so it can NOT be used by anybody else and exposing dummy credentials is possible
+        env:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: example
+    steps:
+      - name: Get Code
+        uses: actions/checkout@v3
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ env.CACHE_KEY }}-${{ hashFiles('**/package-lock.json') }}
+      - name: Install dependencies
+        run: npm ci
+      - name: Run server
+        run: npm start & npx wait-on http://127.0.0.1:$PORT # requires MongoDB Atlas to accept requests from anywhere!
+      - name: Run tests
+        run: npm test
+      - name: Output information
+        run: |
+          echo "MONGODB_USERNAME: $MONGODB_USERNAME"
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Output information
+        env:
+          PORT: 3000
+        run: |
+          echo "MONGODB_DB_NAME: $MONGODB_DB_NAME"
+          echo "MONGODB_USERNAME: $MONGODB_USERNAME"
+          echo "${{ env.PORT }}"
+```
+
+### Using Service Containers (Services)
+
+- example: run tests
+- problem: tests should not manipulate the production database
+- solution: use a testing database
+  - `service container` hosts a testing database
+  - runs inside a container (hosted by the `Runner`)
+  - job `steps` can communicate with service containers (and the services exposed by them)
