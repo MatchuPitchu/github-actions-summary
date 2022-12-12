@@ -783,18 +783,18 @@ jobs:
 
 - `docker container`:
   - packages that contain `code` and its `execution environment`
+  - reproducible and isolated execution environment and results
+  - example: same environment for testing + production
   - you build `images` based on a `Dockerfile` definition
 - with `GitHub Actions` you can run your workflows
-  - just on the `Runner` machine (e.g. `ubuntu-latest`)
+  - just on the `Runner` machine
+    - choose frome list of pre-defined environments incl. installed software (e.g. `ubuntu-latest`)
   - or in a `container`
-    - then a containerized job is hosted by the `Runner` and the `Steps` execute inside the container
+    - full control over environment and installed software
+    - a containerized job is hosted by the `Runner` and the `Steps` execute inside the container
+    - build your own container `images` or use public `images`
     - you can also create `Services`: Utility containers used by your `Steps` (e.g. testing database)
-- `container`:
-  - reproducible and isolated execution environment and results
-  - full control over environment and installed software
-- `Runner`:
-  - choose frome list of pre-defined environments (incl. installed software)
-- using Service Containers (`Services`)
+- `Service Containers` (`Services`)
   - example: run tests
   - problem: tests should not manipulate the production database
   - solution: use a testing database
