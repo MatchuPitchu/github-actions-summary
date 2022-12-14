@@ -138,6 +138,227 @@ jobs:
   - you can build you own `Actions` but you can also use official or community `Actions`
   - `GitHub marketplace` to find `Actions`: <https://github.com/marketplace>
 
+### Custom Actions
+
+#### Why Custom Actions?
+
+- simplify workflow `steps`
+  - instead of writing multiple (possibly very complex) `Step` definitions, build and use a single `custom Action`
+  - multiple `Steps` can be grouped into a single `custom Action` and re-used across multiple jobs
+- no existing (community) action
+  - existing, public `Actions` might not solve the specific problem you have in your `workflow`
+  - `custom Actions` can contain any logic you need to solve your specific `workflow` problems
+
+#### Types of Custom Actions
+
+- `JavaScript Actions`
+  - execute a JS file
+  - use JS (NodeJS) and any packages of your choice
+  - straightforward (if you know JS)
+- `Docker Actions`
+  - create a Dockerfile with your required configuration
+  - perform any task(s) of your choice with any language
+  - lots of flexibility but requires Docker knowledge
+- `Composite Actions`
+  - combine multiple workflow steps in one single Action
+  - combine `run` (commands) and `uses` (Actions)
+  - allow for reusing shared steps (without extra skills)
+
+#### Create Custom Actions
+
+> Documentation YAML syntax for custom actions: <https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions>
+
+1. create an `actions` folder (name is up to you) in `/.github` folder to create a `custom Action` that is available in the repo
+
+   - create a subfolder for each action with an `action.yml`
+
+1. create a standalone repo with your `custom Action` to make it available everywhere
+
+#### Example Composite Action
+
+```yml
+# ./.github/actions/cached-deps/action.yml
+name: 'Get & Cache Dependencies'
+description: 'Get the dependencies (via npm) and cache them'
+# configure action inputs
+inputs:
+  # custom identifier
+  caching:
+    description: 'Whether to cache dependencies or not'
+    required: false
+    default: 'true'
+  # ... add more inputs if needed
+# configure action outputs
+outputs:
+  used-cache:
+    description: 'Whether the cache was used'
+    value: ${{ steps.install.outputs.cache }}
+
+runs:
+  # define that's a custom composite action
+  using: 'composite'
+  steps:
+    - name: Cache dependencies
+      # use inputs context object to insert configured values above
+      if: inputs.caching == 'true'
+      id: cache
+      uses: actions/cache@v3
+      with:
+        path: node_modules
+        key: deps-node-modules-${{ hashFiles('**/package-lock.json') }}
+    - name: Install dependencies
+      id: install
+      # execute npm installation if cache is staled OR if NO caching was set
+      if: steps.cache.outputs.cache-hit != 'true' || inputs.caching != 'true'
+      # only to show how output works: output is set to input.caching value
+      run: |
+        npm ci
+        echo "cache=${{ inputs.caching }}" >> $GITHUB_OUTPUT
+      # if run key is used, then shell definition is needed in custom action
+      shell: bash
+```
+
+```yml
+# use custom action
+name: Deployment
+on:
+  push:
+    branches:
+      - main
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get code
+        uses: actions/checkout@v3
+      - name: Load & cache dependencies
+        # a) if custom action stored in standalone repo
+        # uses: MatchuPitchu/my-custom-action-repo-name
+        # b) if custom action in same repo: relative path starts at root level of repo
+        uses: ./.github/actions/cached-deps
+        with:
+          # set custom action input value
+          caching: 'false'
+      - name: Output custom action
+        run: echo "Cache used? ${{ steps.cache-deps.outputs.used-cache }}"
+      - name: Lint code
+        run: npm run lint
+    # ...
+```
+
+#### Example JavaScript Action
+
+> Documentation GitHub Actions Toolkit for JavaScript that provides a set of npm packages: <https://github.com/actions/toolkit>
+
+- notice: `node_modules` in `./.github/actions/YOUR_CUSTOM_JS_ACTION_FOLDER` should NOT be ignored
+  - also ALL folders and files inside `node_modules` -> check in general `package.json` of whole repo, if e.g. `dist` folder is ignored
+
+```yml
+# ./.github/actions/deploy-s3-javascript/action.yml
+name: 'Deploy to AWS S3'
+description: 'Deploy a static website via AWS S3'
+inputs:
+  bucket:
+    description: 'S3 bucket name'
+    required: true
+  bucket-region:
+    description: 'Region of the S3 bucket'
+    required: false
+    default: 'us-east-1'
+  dist-folder:
+    description: 'Folder containing the deployable files'
+    required: true
+outputs:
+  # register an output that is set from inside the js file
+  website-url:
+    description: 'URL of the website'
+runs:
+  # define the node environment for javascript code
+  using: 'node16'
+  # references to js files
+  # pre: 'setup.js' # if setup needed
+  main: 'main.js'
+  # post: 'cleanup.js' # if cleanup needed
+```
+
+```javascript
+// main.js
+import * as core from '@actions/core';
+import * as github from '@actions/github';
+import * as exec from '@actions/exec';
+
+const run = () => {
+  // prints message to workflow log
+  core.notice('Hello from my custom JS action');
+
+  // 1) Get input values (defined in action.yml) to build a generic custom action
+  const bucket = core.getInput('bucket', { required: true });
+  const bucketRegion = core.getInput('bucket-region', { required: true }); // true since default will be provided in case
+  const distFolder = core.getInput('dist-folder', { required: true });
+
+  // 2) Upload files
+  // exec can run shell command in js code
+  // here use AWS CLI -> it's pre-installed on ubuntu-latest runner machine
+  const s3Uri = `s3://${bucket}`;
+  exec.exec(`aws s3 sync ${distFolder} ${s3Uri} --region ${bucketRegion}`);
+
+  // 3) Generate output value
+  const websiteUrl = `http://${bucket}.s3-website-${bucketRegion}.amazonaws.com`;
+  core.setOutput('website-url', websiteUrl); // key is defined in action.yml
+};
+
+run();
+```
+
+```yml
+# use custom action
+name: Deployment
+on:
+  push:
+    branches:
+      - main
+jobs:
+  # ... other steps (lint, test, build)
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get code
+        uses: actions/checkout@v3
+      - name: Get build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: dist-files
+          path: ./dist
+      - name: Output contents
+        run: ls
+      - name: Deploy site
+        id: deploy-step
+        uses: ./.github/actions/deploy-s3-javascript
+        # set needed AWS keys as env variables for authenticated access to your AWS
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        with:
+          bucket: dummy_name
+          dist-folder: ./dist
+          bucket-region: use-east-2
+      - name: Output information
+        run: |
+          echo "Live URL: ${{ steps.deploy-step.outputs.website-url }}"
+  information:
+    runs-on: ubuntu-latest
+    steps:
+      # use custom JavaScript action
+      # have to checkout the repo code to make it available - if custom action is stored in same repo
+      # checkout NOT needed, if it comes from another repo
+      - name: Get code
+        uses: actions/checkout@v3
+      - name: Run custom JS action
+        uses: ./.github/actions/deploy-s3-javascript
+    # ...
+```
+
 ## Examples of Basic Workflows
 
 - `GitHub` -> `Actions` -> there you find all workflows listed
@@ -389,6 +610,8 @@ jobs:
 ## Caching
 
 > GitHub Action for Caching with Examples: <https://github.com/actions/cache>
+
+> Documentation for Cache dependencies: <https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows>
 
 - helps speed up repeated, slow `steps`
 - typical use-case is caching dependencies, but any files and folders can be cached
