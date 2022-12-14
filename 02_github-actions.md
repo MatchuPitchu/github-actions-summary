@@ -174,6 +174,12 @@ jobs:
 
 1. create a standalone repo with your `custom Action` to make it available everywhere
 
+   - Create a new, local Git repo project folder which contains your `action.yml` file (in root level) + all the code belonging to the action
+   - Add a tag via `git tag -a -m "My action release" v1`
+   - Push your local code to the remote GitHub repository (via `git push --follow tags`)
+   - Use your custom Action in any other Workflow (in any other project and repository) by referencing the repository which contains your action (e.g., `my-account/my-action@v1`)
+   - if your custom Action is stored in a public repository, it can also be published to the GitHub Actions Marketplace as described here: <https://docs.github.com/en/actions/creating-actions/publishing-actions-in-github-marketplace#publishing-an-action>
+
 #### Example Composite Action
 
 ```yml
@@ -358,6 +364,10 @@ jobs:
         uses: ./.github/actions/deploy-s3-javascript
     # ...
 ```
+
+#### Example Docker Action
+
+- is similar to JavaScript action: look at example in specific GitHub practice repository
 
 ## Examples of Basic Workflows
 
