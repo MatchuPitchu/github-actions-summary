@@ -138,33 +138,29 @@ jobs:
   - you can build you own `Actions` but you can also use official or community `Actions`
   - `GitHub marketplace` to find `Actions`: <https://github.com/marketplace>
 
-### Custom Actions
+## Custom Actions
 
-#### Why Custom Actions?
-
-- simplify workflow `steps`
+- simplify workflows and repeated `steps`
   - instead of writing multiple (possibly very complex) `Step` definitions, build and use a single `custom Action`
   - multiple `Steps` can be grouped into a single `custom Action` and re-used across multiple jobs
-- no existing (community) action
-  - existing, public `Actions` might not solve the specific problem you have in your `workflow`
-  - `custom Actions` can contain any logic you need to solve your specific `workflow` problems
+- implement logic that solves a problem not solved by any publicly available `action`
+- create and share `actions` with the community
 
-#### Types of Custom Actions
+### Types of Custom Actions
 
-- `JavaScript Actions`
-  - execute a JS file
-  - use JS (NodeJS) and any packages of your choice
-  - straightforward (if you know JS)
-- `Docker Actions`
-  - create a Dockerfile with your required configuration
-  - perform any task(s) of your choice with any language
-  - lots of flexibility but requires Docker knowledge
 - `Composite Actions`
   - combine multiple workflow steps in one single Action
   - combine `run` (commands) and `uses` (Actions)
-  - allow for reusing shared steps (without extra skills)
+  - allow to reuse shared `steps` (without extra skills)
+- `JavaScript Actions`
+  - write `action` logic in JavaScript (NodeJS) with `@actions/toolkit` (containing helper functions)
+  - use `inputs`, set `outputs` and perform any logic
+- `Docker Actions`
+  - create a Dockerfile with your required configuration
+  - use any language of your choice
+  - use `inputs`, set `outputs` and perform any logic
 
-#### Create Custom Actions
+### Create Custom Actions
 
 > Documentation YAML syntax for custom actions: <https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions>
 
@@ -180,7 +176,7 @@ jobs:
    - Use your custom Action in any other Workflow (in any other project and repository) by referencing the repository which contains your action (e.g., `my-account/my-action@v1`)
    - if your custom Action is stored in a public repository, it can also be published to the GitHub Actions Marketplace as described here: <https://docs.github.com/en/actions/creating-actions/publishing-actions-in-github-marketplace#publishing-an-action>
 
-#### Example Composite Action
+### Example Composite Action
 
 ```yml
 # ./.github/actions/cached-deps/action.yml
@@ -252,9 +248,9 @@ jobs:
     # ...
 ```
 
-#### Example JavaScript Action
+### Example JavaScript Action
 
-> Documentation GitHub Actions Toolkit for JavaScript that provides a set of npm packages: <https://github.com/actions/toolkit>
+> Documentation `GitHub Actions Toolkit` for JavaScript that provides a set of npm packages: <https://github.com/actions/toolkit>
 
 - notice: `node_modules` in `./.github/actions/YOUR_CUSTOM_JS_ACTION_FOLDER` should NOT be ignored
   - also ALL folders and files inside `node_modules` -> check in general `package.json` of whole repo, if e.g. `dist` folder is ignored
@@ -365,9 +361,9 @@ jobs:
     # ...
 ```
 
-#### Example Docker Action
+### Example Docker Action
 
-- is similar to JavaScript action: look at example in specific GitHub practice repository
+- is similar to custom JavaScript action: look at example in specific GitHub practice repository
 
 ## Examples of Basic Workflows
 
