@@ -1124,6 +1124,16 @@ jobs:
 
 ## Permissions & Security
 
+> General overview & important concepts: <https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions>
+
+> More on Secrets: <https://docs.github.com/en/actions/security-guides/encrypted-secrets>
+
+> Using GITHUB_TOKEN: <https://docs.github.com/en/actions/security-guides/automatic-token-authentication>
+
+> Advanced - Preventing Fork Pull Requests Attacks: <https://securitylab.github.com/research/github-actions-preventing-pwn-requests/>
+
+> Security Hardening with OpenID Connect: <https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect>
+
 ### Script Injection
 
 - a value, set outside a `workflow`, is used in a `workflow`
@@ -1173,9 +1183,48 @@ jobs:
 - `actions` can perform any logic, including potentially malicious logic
 - example: a third-party action that reads and exports your secrets
 - only use trusted `actions` and inspect code of unknown/untrusted authors
+  - `actions` in marketplace with blue checkmark are created by verified author
 
 ### Permission Issues
 
+> Documentation - assigning permissions to jobs: <https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs>
+
+> Documentation of `OpenID Connect` to handle permissions from third-party tools (e.g. `AWS S3` token): <https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect>
+
 - consider avoiding overly permissive permissions
-- example: only allow checking out code (`read-only`)
+  - example: only allow checking out code (`read-only`)
 - GitHub Actions supports fine-grained permissions control
+- in `GitHub` repository -> `Settings` -> `Actions` -> `General`
+  - look at all settings on this configuration site
+  - under `Workflow permissions` you can chose a more restrictive default permission behavior (-> `Read repository contents permission`)
+  - disable `Allow GitHub Actions to create and approve pull requests` that only humans can do this
+
+```yml
+name: Label Issues (Permissions Example)
+on:
+  issues:
+    types:
+      - opened
+jobs:
+  assign-label:
+    # set permission on job level
+    # default setting without permissions key: everything is permitted
+    permissions:
+      issues: write
+    runs-on: ubuntu-latest
+    steps:
+      # add a 'bug' label to an issue with 'bug' in title
+      - name: Assign label
+        if: contains(github.event.issue.title, 'bug')
+        # secrets.GITHUB_TOKEN is generated automatically by GitHub
+        # token (with permissions) is only valid as long as job is running
+        run: |
+          curl -X POST \
+          --url https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/labels \
+          -H 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+          -H 'content-type: application/json' \
+          -d '{
+              "labels": ["bug"]
+            }' \
+          --fail
+```
