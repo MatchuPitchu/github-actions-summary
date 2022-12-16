@@ -1,6 +1,6 @@
 # GitHub Actions
 
-> Cours Repository: <https://github.com/academind/github-actions-course-resources>
+> Course Repository: <https://github.com/academind/github-actions-course-resources>
 
 > Plugin GitHub Actions for VSCode: <https://marketplace.visualstudio.com/items?itemName=cschleiden.vscode-github-actions>
 
@@ -20,7 +20,7 @@
 ## Key Elements
 
 - `Workflows`
-  - are attached to GitHub repositories
+  - are attached to GitHub repos
   - contain one or more `jobs`
   - are triggered when certain `events` are fired
   - by default, `workflows` get cancelled if `jobs` fail -> but you can cancel also manually directly in GitHub
@@ -66,7 +66,7 @@
 
 ### Event Activity Types & Filters
 
-> List of Events with their available `activity types` and `filters`: <https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows>
+> List of Events with `activity types` and `filters`: <https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows>
 
 > Filter Patterns Cheat Sheet: <https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#patterns-to-match-branches-and-tags>
 
@@ -135,14 +135,14 @@ jobs:
 
 - `action` (-> `uses` key)
   - is a (custom) application that performs a (typically complex) frequently repeated task
-  - you can build you own `Actions` but you can also use official or community `Actions`
-  - `GitHub marketplace` to find `Actions`: <https://github.com/marketplace>
+  - you can build custom `actions` but you can also use official or community `actions`
+  - `GitHub marketplace` to find `actions`: <https://github.com/marketplace>
 
 ## Custom Actions
 
 - simplify workflows and repeated `steps`
-  - instead of writing multiple (possibly very complex) `Step` definitions, build and use a single `custom Action`
-  - multiple `Steps` can be grouped into a single `custom Action` and re-used across multiple jobs
+  - instead of writing multiple (possibly very complex) `step` definitions, build and use a single `custom Action`
+  - multiple `steps` can be grouped into a single `custom Action` and re-used across multiple jobs
 - implement logic that solves a problem not solved by any publicly available `action`
 - create and share `actions` with the community
 
@@ -164,17 +164,17 @@ jobs:
 
 > Documentation YAML syntax for custom actions: <https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions>
 
-1. create an `actions` folder (name is up to you) in `/.github` folder to create a `custom Action` that is available in the repo
+1. create `actions` folder in `/.github` to create a `custom Action` that is available in the repo
 
-   - create a subfolder for each action with an `action.yml`
+   - create a subfolder (name is up to you) for each action with an `action.yml`
 
 1. create a standalone repo with your `custom Action` to make it available everywhere
 
-   - Create a new, local Git repo project folder which contains your `action.yml` file (in root level) + all the code belonging to the action
-   - Add a tag via `git tag -a -m "My action release" v1`
-   - Push your local code to the remote GitHub repository (via `git push --follow tags`)
-   - Use your custom Action in any other Workflow (in any other project and repository) by referencing the repository which contains your action (e.g., `my-account/my-action@v1`)
-   - if your custom Action is stored in a public repository, it can also be published to the GitHub Actions Marketplace as described here: <https://docs.github.com/en/actions/creating-actions/publishing-actions-in-github-marketplace#publishing-an-action>
+   - create a new, local Git repo project folder which contains your `action.yml` file (in root level) + all the code belonging to the action
+   - add a tag via `git tag -a -m "My action release" v1`
+   - push your local code to the remote GitHub repo (via `git push --follow-tags`)
+   - use your custom Action in any other workflow (other project/repo) by referencing repo which contains action (e.g., `my-account/my-action@v1`)
+   - if your custom Action is stored in a public repo, it can also be published to the GitHub Actions Marketplace as described here: <https://docs.github.com/en/actions/creating-actions/publishing-actions-in-github-marketplace#publishing-an-action>
 
 ### Example Composite Action
 
@@ -182,6 +182,7 @@ jobs:
 # ./.github/actions/cached-deps/action.yml
 name: 'Get & Cache Dependencies'
 description: 'Get the dependencies (via npm) and cache them'
+
 # configure action inputs
 inputs:
   # custom identifier
@@ -190,6 +191,7 @@ inputs:
     required: false
     default: 'true'
   # ... add more inputs if needed
+
 # configure action outputs
 outputs:
   used-cache:
@@ -216,7 +218,7 @@ runs:
       run: |
         npm ci
         echo "cache=${{ inputs.caching }}" >> $GITHUB_OUTPUT
-      # if run key is used, then shell definition is needed in custom action
+      # shell definition needed in custom action, if run key is used
       shell: bash
 ```
 
@@ -325,6 +327,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      # use custom JavaScript action
+      # have to checkout the repo code to make it available - if custom action is stored in same repo
+      # checkout NOT needed, if it comes from another repo
       - name: Get code
         uses: actions/checkout@v3
       - name: Get build artifacts
@@ -338,27 +343,17 @@ jobs:
         id: deploy-step
         uses: ./.github/actions/deploy-s3-javascript
         # set needed AWS keys as env variables for authenticated access to your AWS
+        # better solution: OpenID Connect (look at security below)
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         with:
           bucket: dummy_name
-          dist-folder: ./dist
           bucket-region: use-east-2
+          dist-folder: ./dist
       - name: Output information
         run: |
           echo "Live URL: ${{ steps.deploy-step.outputs.website-url }}"
-  information:
-    runs-on: ubuntu-latest
-    steps:
-      # use custom JavaScript action
-      # have to checkout the repo code to make it available - if custom action is stored in same repo
-      # checkout NOT needed, if it comes from another repo
-      - name: Get code
-        uses: actions/checkout@v3
-      - name: Run custom JS action
-        uses: ./.github/actions/deploy-s3-javascript
-    # ...
 ```
 
 ### Example Docker Action
@@ -369,7 +364,7 @@ jobs:
 
 - `GitHub` -> `Actions` -> there you find all workflows listed
 - workflow configuration should be stored in `<repo-name>/.github/workflows/<config-file>.yml`
-- workflos are executed when their events are triggered
+- workflows are executed when their events are triggered
 - `GitHub` provides detailed insights into job execution and logs
 
 ### Workflow 1
@@ -448,6 +443,7 @@ jobs:
         run: npm ci
       - name: Run tests
         run: npm test
+
   deploy:
     # this job waits until 'test' job is successfully finished
     needs: test # multiple jobs: [test, job2]
@@ -464,7 +460,7 @@ jobs:
         run: npm ci
       - name: Build project
         run: npm run build
-      - name: Dploy
+      - name: Deploy
         # normally you need to deploy on real hosting server
         run: echo "Deploying ..."
 ```
@@ -528,7 +524,8 @@ on:
       - main
 jobs:
   # test:
-  # ... not included here
+  # ...
+
   build:
     needs: test
     runs-on: ubuntu-latest
@@ -552,6 +549,7 @@ jobs:
           # path: |
           #   dist
           #   package.json
+
   deploy:
     # need to run after build step that artifact is ready to use
     needs: build
@@ -587,7 +585,7 @@ jobs:
     runs-on: ubuntu-latest
     # define that this job will have an output (i.e. value(s))
     outputs:
-      # custom identifier key, using special 'steps' context object, use your defined id (look below)
+      # custom identifier key, using special 'steps' context object, use your defined id (look into step 'Publish JS filename')
       # to access your value
       script-file: ${{ steps.publish.outputs.foo }}
     steps:
@@ -604,6 +602,7 @@ jobs:
         # and add >> $GITHUB_OUTPUT after value (targets special file that GitHub creats in your environment
         # where output key value pair is written to)
         run: find dist/assets/*.js -type f -execdir echo 'foo={}' >> $GITHUB_OUTPUT ';'
+
   output:
     needs: build
     runs-on: ubuntu-latest
@@ -652,6 +651,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       # ...
+
   build:
     needs: test
     runs-on: ubuntu-latest
@@ -700,10 +700,12 @@ on:
     branches:
       - main
       - dev
+
 # defining env variable on workflow level -> they will be available in all jobs
 env:
   # use your defined variable name of process.env.NAME as key and set the value
   MONGODB_DB_NAME: dummy-name
+
 jobs:
   test:
     # set an environment configured in GitHub Repo -> Settings -> Environments
@@ -730,7 +732,7 @@ jobs:
       - name: Run server
         # a) inject env variable into command (-> format for Linux Bash Shell used on ubuntu runner: $NAME)
         # you could also change the default shell to Windows Powershell etc.: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsshell
-        run: npm start & npx wait-on http://127.0.0.1:$env:PORT
+        run: npm start & npx wait-on http://127.0.0.1:$PORT
       - name: Output information
         # b) output env variable with GitHub env object context
         # 'env.MONGODB_USERNAME' is automatically hidden by GitHub because it's set as a secret
@@ -772,7 +774,7 @@ on:
       - main
 jobs:
   # ...
-  # ...
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -807,8 +809,9 @@ jobs:
           name: test-report
           # test.json summary is produced by script (-> package.json)
           path: test.json
+
   # ...
-  # ...
+
   report:
     # only starts after 'lint' and 'deploy' (which depends on 'build' and 'test') finished
     needs: [lint, deploy]
@@ -831,6 +834,7 @@ on:
       - main
 jobs:
   # ...
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -922,6 +926,7 @@ on:
         default: dist
         type: string # or number, boolean
       # ... other keys as you like and need
+
     # set outputs of this workflow
     outputs:
       result:
